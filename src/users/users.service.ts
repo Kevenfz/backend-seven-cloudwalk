@@ -11,6 +11,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as usersMock from './mocks/users.json';
 import { handleErrorConstraintUnique } from './../utils/handle.error.utils';
+import { MailService } from '../mail/mail.service';
 
 const saltRounds = 10;
 
@@ -18,6 +19,7 @@ const saltRounds = 10;
 export class UsersService {
   constructor(
     private readonly mailerService: MailerService,
+    private readonly mailService: MailService,
   ) {}
 
   async findAll() {
@@ -113,28 +115,7 @@ export class UsersService {
       throw new NotFoundException(`E-mail inválido!`);
     }
 
-    // code exists
-    let _url = `https://seven-cloudwalk.herokuapp.com/users/recovery-confirmation/${(user as any).id}`;
-    if (process.env.NODE_ENV === 'development') {
-      _url = `http://localhost:3500/users/recovery-confirmation/${(user as any).id}`;
-    }
-
-    try {
-      await this.mailerService.sendMail({
-        to: email,
-        subject: 'Recuperação de senha',
-        text: 'Recuperação de senha',
-        template: './recovery-password',
-        context: {
-          url: _url,
-        },
-      });
-
-      return { statusCode: 200, message: `Enviado para o email: ${email}` };
-    } catch (error) {
-      console.log(error);
-
-      throw new BadRequestException(`Erro no envio de e-mail para ${email}`);
-    }
+    await this.mailService.sendPasswordRecovery(user.email, (user as any).id);
+    return { statusCode: 200, message: `Enviado para o email: ${email}` };
   }
 }
