@@ -1,11 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PrismaService } from 'src/prisma/prisma.service';
+import * as usersMock from '../users/mocks/users.json';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly prisma: PrismaService) {
+  constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -13,10 +13,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { email: string }) {
-    const user = await this.prisma.users.findUnique({
-      where: { email: payload.email },
-    });
+  async validate(payload: { sub: string; email: string }) {
+    const user = (usersMock as any[]).find((user) => user.email === payload.email);
 
     if (!user) {
       throw new UnauthorizedException(
@@ -24,7 +22,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
     }
 
-    delete user.password;
+    // Assuming password is a property in the mock data that should not be returned
+    if (user.password) {
+      delete user.password;
+    }
+
 
     return user;
   }

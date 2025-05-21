@@ -1,9 +1,7 @@
-import { OrderDetails } from "@prisma/client";
-
 export class Orders {
     id?:    string;
     userId: String ;
-    details: OrderDetails[];
+    details: any[];
     createdAt?: Date;
     updatedAt?: Date;
 }

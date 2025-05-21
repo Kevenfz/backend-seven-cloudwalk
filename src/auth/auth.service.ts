@@ -1,50 +1,42 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { LoginResponseDto } from './dto/login-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
+import * as usersMock from '../users/mocks/users.json';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-
     private readonly mailerService: MailerService,
   ) {}
 
-  async login(loginDto: LoginDto): Promise<LoginResponseDto> {
+  async login(loginDto: LoginDto): Promise<any> {
     const { email, password } = loginDto;
 
-    // Procura e checa se o user existe, usando o email
-    const user = await this.prisma.users.findUnique({
-      where: { email: email },
-    });
+    // Find the user in the mock array
+    const user = (usersMock as any[]).find((user: any) => user.email === email);
 
     if (!user) {
       throw new UnauthorizedException('Usuário e/ou senha inválidos');
     }
 
-    // Valida se a senha informada é correta
-    const isHashValid = await bcrypt.compare(password, user.password);
-
-    if (!isHashValid) {
+    // Compare the provided password with the mock password (assuming no bcrypt for simplicity)
+    if (password !== user.password) {
       throw new UnauthorizedException('Usuário e/ou senha inválidos');
     }
 
-    delete user.password;
+    // Generate JWT token
+    const token = this.jwtService.sign({ sub: user.id, email: user.email });
+
+    // Remove password from the returned user object
+    const userWithoutPassword = { ...user };
+    delete userWithoutPassword.password;
 
     return {
-      token: this.jwtService.sign({ email }),
-      user,
+      token,
+      user: userWithoutPassword,
     };
   }
 }
-
-/*
- user: name um
- email: hefi1413@gmail
- password: 5PT!7fmQ
-*/

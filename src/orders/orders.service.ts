@@ -3,31 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { handleErrorConstraintUnique } from 'src/utils/handle.error.utils';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import * as ordersMock from './mocks/orders.json';
+
+// Import mock products if needed for details, assuming details link to products
+// import * as productsMock from '../products/mocks/products.json';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
-
   findAll() {
-    return this.prisma.orders.findMany({
-      include: {
-        details: true,
-      },
-    });
+    return ordersMock;
   }
 
   async findOne(_id: string) {
-    const record = await this.prisma.orders.findUnique({
-      where: { id: _id },
-      include: {
-        details: true,
-      },
-    });
-
+    const record = (ordersMock as any).find((order) => order.id === _id); // Assuming ordersMock has an 'id' field
     if (!record) {
       throw new NotFoundException(`Registro ID:${_id} não localizado.`);
     }
@@ -39,78 +30,47 @@ export class OrdersService {
       throw new BadRequestException(`Este pedido não contém itens.`);
     }
 
-    let _data = {
+    // Simulate creating a new order
+    const newOrder = {
+      id: (ordersMock as any[]).length + 1, // Simple ID generation
       userId: userId,
-      details: {
-        create: dto.details,
-      },
+      details: dto.details, // Include the details directly
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
-    // cria o pedido com os detalhes
-    try {
-      return await this.prisma.orders.create({ data: _data });
-    } catch (error) {
-      return handleErrorConstraintUnique(error);
-    }
+    (ordersMock as any[]).push(newOrder); // Add to the mock array
+    return newOrder;
   }
 
   async update(_id: string, dto: UpdateOrderDto) {
-    const record = await this.prisma.orders.findUnique({ where: { id: _id } });
-    if (!record) {
+    const index = (ordersMock as any[]).findIndex((order) => order.id === _id);
+
+    if (index === -1) {
       throw new NotFoundException(`Registro ID:'${_id}' não localizado.`);
     }
 
-    if (!dto.details.length) {
+    if (dto.details && !dto.details.length) {
       throw new BadRequestException(`Este pedido não contém itens.`);
     }
 
-    try {
-      // remove todos os detalhes do pedido para futura inclusão
-      const oldDetails = this.prisma.orderDetails.deleteMany({
-        where: { orderId: _id },
-      });
+    // Get the existing record to merge updates
+    const record = (ordersMock as any[])[index];
 
-      // altera o pedido incluindo novos itens
-      const newOrder = this.prisma.orders.update({
-        where: { id: _id },
-        data: {
-          updatedAt: new Date(),
-          details: {
-            create: dto.details,
-          },
-        },
-      });
+    // Update the order data, including details
+    (ordersMock as any[])[index] = { ...record, ...dto, updatedAt: new Date() };
 
-      // tenta efetuar a alteração
-      return await this.prisma.$transaction([oldDetails, newOrder]);
-    } catch (error) {
-      return handleErrorConstraintUnique(error);
-    }
+    // Return the updated order
+    return (ordersMock as any[])[index];
   }
 
   async delete(_id: string) {
-    const record = await this.prisma.orders.findUnique({ where: { id: _id } });
-    if (!record) {
-      throw new NotFoundException(`Registro ID:'${_id}' não localizado.`);
-    }
-
-    try {
-      // remove os dettalhes do pedido
-      const oldDetails = this.prisma.orderDetails.deleteMany({
-        where: { orderId: _id },
-      });
-
-      // remove o pedido
-      const oldOrder = this.prisma.orders.delete({
-        where: { id: _id },
-      });
-
-      // tenta efetuar a exclusão
-      return await this.prisma.$transaction([oldDetails, oldOrder]);
-    } catch (e) {
+    const index = (ordersMock as any[]).findIndex((order) => order.id === _id);
+    if (index === -1) {
       throw new NotFoundException(
         `Não foi possível deletar o registro ID:${_id}`,
       );
     }
+    return (ordersMock as any[]).splice(index, 1)[0]; // Remove and return the deleted order
   }
 }

@@ -1,7 +1,4 @@
-import { Users } from "@prisma/client";
-
-
-export function isAdmin(user: Users): boolean {
+export function isAdmin(user: any): boolean {
 
     return ( user ? user.roleAdmin : false )
 

@@ -5,62 +5,59 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { Users } from '@prisma/client';
-import { handleErrorConstraintUnique } from './../utils/handle.error.utils';
+import { Users } from './entities/user.entity'; // Importe a interface/classe Users correta
 import { MailerService } from '@nestjs-modules/mailer';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import * as usersMock from './mocks/users.json';
+import { handleErrorConstraintUnique } from './../utils/handle.error.utils';
 
 const saltRounds = 10;
 
 @Injectable()
 export class UsersService {
-  // mailerService: any;
   constructor(
-    private prisma: PrismaService,
     private readonly mailerService: MailerService,
   ) {}
 
-  findAll() {
-    return this.prisma.users.findMany({
-      orderBy: {
-        nickname: 'asc',
-      },
-    });
-  }
-
-  async findOne(_id: string) {
-    const record = await this.prisma.users.findUnique({
-      where: { id: _id },
-    });
-
-    if (!record) {
-      throw new NotFoundException(`Registro ID:${_id} não localizado.`);
-    }
-    return record;
+  async findAll() {
+    return usersMock;
   }
 
   async create(dto: CreateUserDto) {
 
-    dto.password = bcrypt.hashSync(dto.password, saltRounds);
+    // Simula a verificação de email duplicado
+    if (usersMock.some(user => user.email === dto.email)) {
+      throw new BadRequestException('Email já cadastrado.');
+    }
 
+    dto.password = bcrypt.hashSync(dto.password, saltRounds);
     try {
-      // cria usuário no banco de dados
-      return await this.prisma.users.create({ data: dto });
+      const newUser = { id: (usersMock.length + 1).toString(), ...dto, active: false, verificationCode: Math.random().toString(36).substring(7) }; // Gera um ID simples e código de verificação
+      usersMock.push(newUser as any); // Adiciona ao array mockado
+      return newUser;
     } catch (error) {
       console.log(error);
       return handleErrorConstraintUnique(error);
     }
   }
 
-  async update(_id: string, dto: UpdateUserDto) {
-    const _data: Partial<Users> = { ...dto };
+  async findOne(id: string) {
+    const user = usersMock.find(user => (user as any).id === id); // Caste para 'any' temporariamente se o mock não tiver ID
+    if (!user) {
+      throw new NotFoundException(`Registro ID:${id} não localizado.`);
+    }
+    return user;
+  }
 
-    const record = await this.prisma.users.findUnique({ where: { id: _id } });
+  async update(id: string, dto: UpdateUserDto) {
+    const _data: Partial<any> = { ...dto }; // Use 'any' ou crie uma interface para os dados mockados
 
-    if (!record) {
-      throw new NotFoundException(`Registro ID: ${_id} não localizado.`);
+    const index = usersMock.findIndex(user => (user as any).id === id); // Caste para 'any'
+    const user = usersMock[index];
+
+    if (!user) {
+      throw new NotFoundException(`Registro ID: ${id} não localizado.`);
     }
 
     if( _data.password ) {
@@ -68,62 +65,34 @@ export class UsersService {
     }
 
     try {
-      // altera usuário no banco de dados
-      return await this.prisma.users.update({
-        where: { id: _id },
-        data: _data,
-      })
-      } catch (error) {
+      usersMock[index] = { ...usersMock[index], ..._data } as any; // Atualiza o usuário no array mockado e caste para 'any'
+      return usersMock[index];    } catch (error) {
       console.log(error);
       return handleErrorConstraintUnique(error);
     }
   }
 
-  /*
-  async updatePassword(_id: string, dto: UpdateUserDto) {
-    const _data: Partial<Users> = { ...dto };
-    const record = await this.prisma.users.findUnique({ where: { id: _id } });
-
-    if (!record) {
-      throw new NotFoundException(`Registro ID:'${_id}' não localizado.`);
-    }
-
-    return this.prisma.users
-      .update({
-        where: { id: _id },
-        data: _data,
-      })
-      .catch(handleErrorConstraintUnique);
-  }
-  */
-
-  async delete(_id: string) {
-    const record = await this.prisma.users.findUnique({
-      where: { id: _id },
-    });
-
-    if (!record) {
-      throw new NotFoundException(`Registro ID:${_id} não localizado.`);
+  async delete(id: string) {
+    const recordIndex = usersMock.findIndex(user => (user as any).id === id); // Caste para 'any'
+    if (recordIndex === -1) {
+      throw new NotFoundException(`Registro ID:${id} não localizado.`);
     }
 
     try {
-      return await this.prisma.users.delete({
-        where: { id: _id },
-      });
+      const deletedUser = usersMock.splice(recordIndex, 1); // Remove do array mockado
+      return deletedUser[0];
     } catch (error) {
       console.log(error);
 
       throw new BadRequestException(
-        `Não foi possível deletar o registro ID:${_id}`,
+        `Não foi possível deletar o registro ID:${id}`,
       );
     }
   }
 
   async verification(code: string) {
     // check in database if code exists
-    const user = await this.prisma.users.findUnique({
-      where: { verificationCode: code },
-    });
+    const user = usersMock.find(user => (user as any).verificationCode === code); // Caste para 'any'
 
     // codigo de verificação não localizado, retorna error
     if (!user) {
@@ -131,17 +100,13 @@ export class UsersService {
     }
 
     // if code exists muda status de usuário para ativo
-    return await this.prisma.users.update({
-      where: { id: user.id },
-      data: { active: true },
-    });
+    (user as any).active = true; // Ativa o usuário no array mockado
+    return user as any; // Caste para 'any' ao retornar
   }
 
   async recovery(email: string) {
     // check in database if email exists
-    const user = await this.prisma.users.findUnique({
-      where: { email },
-    });
+    const user = usersMock.find(user => user.email === email);
 
     // email não localizado, retorna error
     if (!user) {
@@ -149,9 +114,9 @@ export class UsersService {
     }
 
     // code exists
-    let _url = `https://seven-cloudwalk.herokuapp.com/users/recovery-confirmation/${user.id}`;
+    let _url = `https://seven-cloudwalk.herokuapp.com/users/recovery-confirmation/${(user as any).id}`;
     if (process.env.NODE_ENV === 'development') {
-      _url = `http://localhost:3500/users/recovery-confirmation/${user.id}`;
+      _url = `http://localhost:3500/users/recovery-confirmation/${(user as any).id}`;
     }
 
     try {
@@ -172,5 +137,4 @@ export class UsersService {
       throw new BadRequestException(`Erro no envio de e-mail para ${email}`);
     }
   }
-  // async forgotPassword() {}
 }

@@ -1,67 +1,65 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Users } from 'src/users/entities/user.entity';
-import { PrismaService } from './../prisma/prisma.service';
 import { FavoriteProductDto } from './dto/favorite.dto';
 import { Favorite } from './entities/favorite.entity';
 import { Product } from './../products/entities/product.entity';
-import { handleErrorConstraintUnique } from 'src/utils/handle.error.utils';
+import * as usersMock from '../users/mocks/users.json';
+import * as productsMock from '../products/mocks/products.json';
+
+const favoriteMock: Favorite[] = [];
 
 @Injectable()
 export class FavoriteService {
-  constructor(private readonly prisma: PrismaService) {}
-
   async favoriteProduct(dto: FavoriteProductDto): Promise<Favorite> {
     await this.verifyUserId(dto.iduser);
 
-    const product: Product = await this.prisma.product.findUnique({
-      where: { name: dto.idproduct },
-    });
+    const product: Product = productsMock.find(
+      (product: any) => product.name === dto.idproduct,
+    ) as Product;
 
     if (!product) {
       throw new NotFoundException(
         `Produto de nome '${dto.idproduct}' não encontrado`,
       );
     }
-    return this.prisma.favorite
-      .create({ data: dto })
-      .catch(handleErrorConstraintUnique);
+
+    const newFavorite: Favorite = {
+      id: (favoriteMock.length + 1).toString(), // Simple ID generation
+      ...dto,
+    } as Favorite; // Cast to Favorite
+
+    favoriteMock.push(newFavorite); // Add to mock array
+
+    return newFavorite;
   }
 
   async unfavoriteProduct(id: string) {
-    const favorite: Favorite = await this.prisma.favorite.findUnique({
-      where: { id },
-    });
+    const index = favoriteMock.findIndex(favorite => favorite.id === id);
+    const favorite = favoriteMock[index];
 
-    if (!favorite) {
+    if (index === -1) {
       throw new NotFoundException(`Produto de nome '${id}' não encontrado`);
     }
 
-    return this.prisma.favorite.delete({ where: { id } });
+    return favoriteMock.splice(index, 1)[0];
   }
 
   async getUserFavorites(id: string): Promise<Favorite[]> {
     await this.verifyUserId(id);
 
-    return this.prisma.favorite.findMany({ where: { iduser: id } });
+    return favoriteMock.filter(favorite => favorite.iduser === id);
   }
 
   async getProductWhoFavorites(id: string): Promise<Favorite[]> {
-    const product: Product = await this.prisma.product.findUnique({
-      where: { id },
-    });
-
+    const product: Product = productsMock.find((p: any) => p.id === id) as Product;
     if (!product) {
       throw new NotFoundException(`Entrada de id '${id}' não encontrada`);
     }
 
-    return this.prisma.favorite.findMany({ where: { idproduct: id } });
+    return favoriteMock.filter(favorite => favorite.idproduct === id);
   }
 
-  async verifyUserId(id: string): Promise<void> {
-    const user: Users = await this.prisma.users.findUnique({
-      where: { id },
-    });
-
+  async verifyUserId(id: string): Promise<void> { // Needs modification to use usersMock
+    const user = usersMock.find((user: any) => user.id === id);
     if (!user) {
       throw new NotFoundException(`Entrada de id '${id}' não encontrada`);
     }

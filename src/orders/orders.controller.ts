@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Users } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrdersService } from './orders.service';
@@ -35,15 +34,15 @@ export class OrdersController {
   @ApiOperation({
     summary: 'Listar um pedido',
   })
-  findOne(@LoggedUser() user: Users, @Param('id') id: string) {
+  findOne(@LoggedUser() user: any, @Param('id') id: string) {
     return this.ordersService.findOne(id);
   }
 
   @Post('create')
   @ApiOperation({
     summary: 'Criar pedido',
-  })
-  create(@LoggedUser() user: Users, @Body() createOrderDto: CreateOrderDto) {
+  }) // Removendo tipo Users do @LoggedUser, pois não está mais vindo do Prisma
+  create(@LoggedUser() user: any, @Body() createOrderDto: CreateOrderDto) {
     return this.ordersService.create(user.id, createOrderDto);
   }
 

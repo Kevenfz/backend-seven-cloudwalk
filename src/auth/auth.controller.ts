@@ -8,7 +8,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Users } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { LoginDto } from './dto/login.dto';
@@ -35,7 +34,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Retorna o usuário autenticado no momento',
   })
-  profile(@LoggedUser() user: Users) {
+  profile(@LoggedUser() user) {
     return user;
   }
 }
