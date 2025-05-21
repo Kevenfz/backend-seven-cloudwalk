@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 export const users: Prisma.UsersCreateInput[] = [
   {
     nickname: 'Jaymeson Mendes',
-    email: 'jaymesonmendes@gmail.com',
+    email: 'jaymeson@teste.com',
     password: 'Abc1234*',
     accountType: 'PF',
     roleAdmin: true,
